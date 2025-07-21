@@ -30,7 +30,7 @@ PRECEDENCES: dict[TokenType, PrecedenceType] = {
     TokenType.POW: PrecedenceType.P_EXPONENT,
 }
 
-class Parser;
+class Parser:
     def __init__(self, lexer: Lexer) -> None:
         self.lexer: Lexer = lexer
 
@@ -108,7 +108,7 @@ class Parser;
     # region Statement Methods
 
     def __parse_statement(self) -> Statement:
-        return self.parse_expression_statement
+        return self.parse_expression_statement()
 
     def parse_expression_statement(self) -> ExpressionStatement:
         expr = self.__parse_expression(PrecedenceType.P_LOWEST)
@@ -137,6 +137,8 @@ class Parser;
 
             self.__next_token()
             left_expr = infix_fn(left_node=left_expr)
+        
+        return left_expr
 
     def __parse_infix_expression(self, left_node: Expression) -> Expression:
         infix_expr: InFixExpression = InFixExpression(left_node=left_node, operator=self.current_token.literal)
@@ -178,5 +180,7 @@ class Parser;
         except:
             self.errors.append(f"Could not parse {self.current_token.literal} as a float.")
             return None
+        
+        return float_lit
 
     # endregion

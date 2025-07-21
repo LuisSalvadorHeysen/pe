@@ -1,0 +1,30 @@
+{
+    "type": "Program",
+    "statements": [
+        {
+            "ExpressionStatement": {
+                "type": "ExpressionStatement",
+                "expr": {
+                    "type": "InFixExpression",
+                    "left_node": {
+                        "type": "InFixExpression",
+                        "left_node": {
+                            "type": "IntegerLiteral",
+                            "value": 5
+                        },
+                        "operator": "+",
+                        "right_node": {
+                            "type": "IntegerLiteral",
+                            "value": 5
+                        }
+                    },
+                    "operator": "*",
+                    "right_node": {
+                        "type": "IntegerLiteral",
+                        "value": 10
+                    }
+                }
+            }
+        }
+    ]
+}

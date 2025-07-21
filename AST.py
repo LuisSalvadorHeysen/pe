@@ -62,10 +62,10 @@ class ExpressionStatement(Statement):
 # region Expressions
 
 class InFixExpression(Expression):
-    def __init__(self, left: Expression, operator: str, right: Expression) -> None:
-        self.left_node: Expression = left
+    def __init__(self, left_node: Expression, operator: str, right_node: Expression = None) -> None:
+        self.left_node: Expression = left_node
         self.operator: str = operator
-        self.left_right: Expression = right
+        self.right_node: Expression = right_node
 
     def type(self) -> NodeType:
         return NodeType.InFixExpression
@@ -75,7 +75,7 @@ class InFixExpression(Expression):
             "type": self.type().value,
             "left_node": self.left_node.json(),
             "operator": self.operator,
-            "right_node": self.left_right.json()
+            "right_node": self.right_node.json()
         }
 
 # endregion
@@ -83,7 +83,7 @@ class InFixExpression(Expression):
 # region Literals
 
 class IntegerLiteral(Expression):
-    def __init__(self, value: int) -> None:
+    def __init__(self, value: int = None) -> None:
         self.value: int = value
 
     def type(self) -> NodeType:
