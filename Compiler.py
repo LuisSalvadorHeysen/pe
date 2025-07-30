@@ -68,6 +68,7 @@ class Compiler:
 
         value = None
         type = None
+
         if isinstance(right_type, ir.IntType) and isinstance(left_type, ir.IntType):
             type = self.type_map["int"]
             match operator:
@@ -79,7 +80,29 @@ class Compiler:
                     value = self.builder.mul(left_value, right_value)
                 case "/":
                     value = self.builder.sdiv(left_value, right_value)
+                case "%":
+                    value = self.builder.srem(left_value, right_value)
+                case "^":
+                    # TODO
+                    pass
 
+
+        elif isinstance(right_type, ir.FloatType) and isinstance(left_type, ir.FloatType):
+            type = self.type_map["int"]
+            match operator:
+                case "+":
+                    value = self.builder.fadd(left_value, right_value)
+                case "-":
+                    value = self.builder.fsub(left_value, right_value)
+                case "*":
+                    value = self.builder.fmul(left_value, right_value)
+                case "/":
+                    value = self.builder.fdiv(left_value, right_value)
+                case "%":
+                    value = self.builder.frem(left_value, right_value)
+                case "^":
+                    # TODO
+                    pass
         return value, type
 
     # endregion

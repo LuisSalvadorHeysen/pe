@@ -6,6 +6,7 @@ class NodeType(Enum):
 
     # Statements
     ExpressionStatement = "ExpressionStatement"
+    LetStatement = "LetStatement"
 
     # Expressions
     InFixExpression = "InFixExpression"
@@ -13,6 +14,7 @@ class NodeType(Enum):
     # Literals
     IntegerLiteral = "IntegerLiteral"
     FloatLiteral = "FloatLiteral"
+    IdentifierLiteral = "IdentifierLiteral"
 
 class Node(ABC):
     @abstractmethod
@@ -40,6 +42,23 @@ class Program(Node):
         return {
             "type": self.type().value,
             "statements": [{stmt.type().value: stmt.json()} for stmt in self.statements]
+        }
+
+class LetStatement(Statement):
+    def __init__(self, name: Expression = None, value: Expression = None, value_type: str = None) -> None:
+        self.name = name
+        self.value = value
+        self.value_type = value_type
+
+    def type(self) -> NodeType:
+        return NodeType.LetStatement
+
+    def json(self) -> dict:
+        return {
+            "type": self.type().value,
+            "name": self.name.json(),
+            "value": self.value.json(),
+            "value_type": self.value_type
         }
 
 # region Statements
@@ -101,6 +120,19 @@ class FloatLiteral(Expression):
 
     def type(self) -> NodeType:
         return NodeType.FloatLiteral
+
+    def json(self) -> dict:
+        return {
+            "type": self.type().value,
+            "value": self.value
+        }
+
+class IdentifierLiteral(Expression):
+    def __init__(self, value: str) -> None:
+        self.value: str = value
+
+    def type(self) -> NodeType:
+        return NodeType.IdentifierLiteral
 
     def json(self) -> dict:
         return {

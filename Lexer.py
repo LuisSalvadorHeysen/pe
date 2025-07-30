@@ -1,4 +1,4 @@
-from Token import Token, TokenType
+from Token import Token, TokenType, lookup_ident
 from typing import Any
 
 class Lexer:
@@ -35,6 +35,9 @@ class Lexer:
     def __is_digit(self, ch: str) -> bool:
         return '0' <= ch and ch <= '9'
 
+    def __is_letter(self, ch: str) -> bool:
+        return ('a' <= ch <= 'z') or ('A' <= ch <= Z) or (ch == '_')
+
     def __read_number(self) -> Token:
         start_pos: int = self.position
         dot_count: int = 0
@@ -60,6 +63,13 @@ class Lexer:
         else:
             return self.__new_token(TokenType.FLOAT, float(output))
 
+    def __read_identifier(self) -> str:
+        position = self.position
+        while self.current_char is not None and (self.__is_letter(self.current_char) or self.current_char.isalnum()):
+            self.__read_char()
+
+        return self.source[position:self.position]
+
     def next_token(self) -> None:
         tok: Token = None
 
@@ -78,6 +88,10 @@ class Lexer:
                 tok = self.__new_token(TokenType.POW, self.current_char)
             case "%":
                 tok = self.__new_token(TokenType.MODULUS, self.current_char)
+            case "=":
+                tok = self.__new_token(TokenType.EQ, self.current_char)
+            case ":":
+                tok = self.__new_token(TokenType.COLON, self.current_char)
             case "(":
                 tok = self.__new_token(TokenType.LPAREN, self.current_char)
             case ")":
@@ -87,7 +101,12 @@ class Lexer:
             case None:
                 tok = self.__new_token(TokenType.EOF, "")
             case _:
-                if self.__is_digit(self.current_char):
+                if self.__is_letter(self.current_char):
+                    literal: str = self.__read_identifier()
+                    tt: TokenType = lookup_ident(literal)
+                    tok = self.__new_token(tt=tt, literal=literal)
+
+                elif self.__is_digit(self.current_char):
                     return  self.__read_number()
                 else:
                     tok = self.__new_token(TokenType.ILLEGAL, self.current_char)

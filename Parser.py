@@ -174,13 +174,12 @@ class Parser:
         return int_lit
 
     def __parse_float_literal(self) -> Expression:
-        float_lit: FloatLiteral = FloatLiteral()
         try:
-            float_lit.value = float(self.current_token.literal)
+            value = float(self.current_token.literal)
         except:
             self.errors.append(f"Could not parse {self.current_token.literal} as a float.")
             return None
         
-        return float_lit
+        return FloatLiteral(value)
 
     # endregion
