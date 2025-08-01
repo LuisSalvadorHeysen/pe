@@ -1,0 +1,8 @@
+casera add(a: int, b: int) -> int {
+   tomacausa b + a pe
+}
+
+casera main() -> int {
+    pucha a: int ponle 20 pe
+    tomacausa a pe
+}
