@@ -58,11 +58,11 @@ fn main() -> int {
 ## Example Code with Peruvian Slang Keywords
 
 ```
-casera add(a: int, b: int) -> int {
+casera add(a: int, b: int) bota int {
     tomacausa a + b pe
 }
 
-fn main() -> int {
+casera main() bota int {
     pucha a: int ponle 5 pe
 
     sipe a == 5 {

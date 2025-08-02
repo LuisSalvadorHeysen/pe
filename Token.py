@@ -81,7 +81,7 @@ ALT_KEYWORDS: dict[str, TokenType] = {
     "pe": TokenType.SEMICOLON,
     "casera": TokenType.FN,
     "tomacausa": TokenType.RETURN,
-    "aquisitonoma": TokenType.ARROW,
+    "bota": TokenType.ARROW,
     "sipe": TokenType.IF,
     "sinope": TokenType.ELSE
 }
