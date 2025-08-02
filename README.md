@@ -52,10 +52,12 @@ if (x > 5) {
 ## Example Code with Peruvian Slang Keywords
 
 ```
-pucha x: int = 10 pe
-casera add(a: int, b: int) aquisitonoma int {
+pucha x: int ponle 10 pe
+
+casera add(a, b) {
     tomacausa a + b pe
 }
+
 sipe (x > 5) {
     tomacausa add(x, 5) pe
 } sinope {
