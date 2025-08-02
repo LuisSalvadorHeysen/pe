@@ -6,6 +6,48 @@
                 "type": "FunctionStatement",
                 "name": {
                     "type": "IdentifierLiteral",
+                    "value": "add"
+                },
+                "return_type": "int",
+                "parameters": [
+                    {
+                        "type": "FunctionParameter",
+                        "name": "a",
+                        "value_type": "int"
+                    },
+                    {
+                        "type": "FunctionParameter",
+                        "name": "b",
+                        "value_type": "int"
+                    }
+                ],
+                "body": {
+                    "type": "BlockStatement",
+                    "statements": [
+                        {
+                            "type": "ReturnStatement",
+                            "return_value": {
+                                "type": "InfixExpression",
+                                "left_node": {
+                                    "type": "IdentifierLiteral",
+                                    "value": "a"
+                                },
+                                "operator": "+",
+                                "right_node": {
+                                    "type": "IdentifierLiteral",
+                                    "value": "b"
+                                }
+                            }
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "FunctionStatement": {
+                "type": "FunctionStatement",
+                "name": {
+                    "type": "IdentifierLiteral",
                     "value": "main"
                 },
                 "return_type": "int",
@@ -45,14 +87,23 @@
                                     "type": "BlockStatement",
                                     "statements": [
                                         {
-                                            "type": "AssignStatement",
-                                            "ident": {
-                                                "type": "IdentifierLiteral",
-                                                "value": "a"
-                                            },
-                                            "right_value": {
-                                                "type": "IntegerLiteral",
-                                                "value": 20
+                                            "type": "ReturnStatement",
+                                            "return_value": {
+                                                "type": "CallExpression",
+                                                "function": {
+                                                    "type": "IdentifierLiteral",
+                                                    "value": "add"
+                                                },
+                                                "arguments": [
+                                                    {
+                                                        "type": "IntegerLiteral",
+                                                        "value": 10
+                                                    },
+                                                    {
+                                                        "type": "IntegerLiteral",
+                                                        "value": 5
+                                                    }
+                                                ]
                                             }
                                         }
                                     ]
@@ -61,14 +112,23 @@
                                     "type": "BlockStatement",
                                     "statements": [
                                         {
-                                            "type": "AssignStatement",
-                                            "ident": {
-                                                "type": "IdentifierLiteral",
-                                                "value": "a"
-                                            },
-                                            "right_value": {
-                                                "type": "IntegerLiteral",
-                                                "value": 30
+                                            "type": "ReturnStatement",
+                                            "return_value": {
+                                                "type": "CallExpression",
+                                                "function": {
+                                                    "type": "IdentifierLiteral",
+                                                    "value": "add"
+                                                },
+                                                "arguments": [
+                                                    {
+                                                        "type": "IntegerLiteral",
+                                                        "value": 10
+                                                    },
+                                                    {
+                                                        "type": "IntegerLiteral",
+                                                        "value": 1
+                                                    }
+                                                ]
                                             }
                                         }
                                     ]
@@ -78,8 +138,8 @@
                         {
                             "type": "ReturnStatement",
                             "return_value": {
-                                "type": "IdentifierLiteral",
-                                "value": "a"
+                                "type": "IntegerLiteral",
+                                "value": 0
                             }
                         }
                     ]

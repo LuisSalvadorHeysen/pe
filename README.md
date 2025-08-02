@@ -38,15 +38,19 @@ ALT_KEYWORDS: dict[str, TokenType] = {
 ## Example Code with Standard Syntax
 
 ```python
-let x: int = 10;
-
 fn add(a: int, b: int) -> int {
     return a + b;
 }
 
-if (x > 5) {
-    return add(x, 5);
-} else {
+fn main() -> int {
+    let a: int = 5;
+
+    if a == 5 {
+        return add(10, 5);
+    } else {
+        return add(10, 1);
+    }
+
     return 0;
 }
 ```
@@ -54,15 +58,19 @@ if (x > 5) {
 ## Example Code with Peruvian Slang Keywords
 
 ```
-pucha x: int ponle 10 pe
-
-casera add(a, b) {
+casera add(a: int, b: int) -> int {
     tomacausa a + b pe
 }
 
-sipe (x > 5) {
-    tomacausa add(x, 5) pe
-} sinope {
+fn main() -> int {
+    pucha a: int ponle 5 pe
+
+    sipe a == 5 {
+        tomacausa add(10, 5) pe
+    } sinope {
+        tomacausa add(10, 1) pe
+    }
+
     tomacausa 0 pe
 }
 ```
