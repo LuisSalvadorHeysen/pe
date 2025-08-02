@@ -39,9 +39,11 @@ ALT_KEYWORDS: dict[str, TokenType] = {
 
 ```python
 let x: int = 10;
+
 fn add(a: int, b: int) -> int {
     return a + b;
 }
+
 if (x > 5) {
     return add(x, 5);
 } else {
