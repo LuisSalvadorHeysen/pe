@@ -82,6 +82,6 @@ casera main() bota int {
 - **pe**: Statement terminator (equivalent to ";")
 - **casera**: Function declaration keyword (equivalent to "fn")
 - **tomacausa**: Return statement (equivalent to "return")
-- **aquisitonoma**: Arrow operator for return types (equivalent to "->")
+- **bota**: Arrow operator for return types (equivalent to "->")
 - **sipe**: Conditional statement (equivalent to "if")
 - **sinope**: Alternative branch (equivalent to "else")
