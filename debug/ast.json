@@ -6,48 +6,6 @@
                 "type": "FunctionStatement",
                 "name": {
                     "type": "IdentifierLiteral",
-                    "value": "add"
-                },
-                "return_type": "int",
-                "parameters": [
-                    {
-                        "type": "FunctionParameter",
-                        "name": "a",
-                        "value_type": "int"
-                    },
-                    {
-                        "type": "FunctionParameter",
-                        "name": "b",
-                        "value_type": "int"
-                    }
-                ],
-                "body": {
-                    "type": "BlockStatement",
-                    "statements": [
-                        {
-                            "type": "ReturnStatement",
-                            "return_value": {
-                                "type": "InfixExpression",
-                                "left_node": {
-                                    "type": "IdentifierLiteral",
-                                    "value": "b"
-                                },
-                                "operator": "+",
-                                "right_node": {
-                                    "type": "IdentifierLiteral",
-                                    "value": "a"
-                                }
-                            }
-                        }
-                    ]
-                }
-            }
-        },
-        {
-            "FunctionStatement": {
-                "type": "FunctionStatement",
-                "name": {
-                    "type": "IdentifierLiteral",
                     "value": "main"
                 },
                 "return_type": "int",
@@ -63,9 +21,59 @@
                             },
                             "value": {
                                 "type": "IntegerLiteral",
-                                "value": 20
+                                "value": 5
                             },
                             "value_type": "int"
+                        },
+                        {
+                            "type": "ExpressionStatement",
+                            "expr": {
+                                "type": "IfStatement",
+                                "condition": {
+                                    "type": "InfixExpression",
+                                    "left_node": {
+                                        "type": "IdentifierLiteral",
+                                        "value": "a"
+                                    },
+                                    "operator": "==",
+                                    "right_node": {
+                                        "type": "IntegerLiteral",
+                                        "value": 5
+                                    }
+                                },
+                                "consequence": {
+                                    "type": "BlockStatement",
+                                    "statements": [
+                                        {
+                                            "type": "AssignStatement",
+                                            "ident": {
+                                                "type": "IdentifierLiteral",
+                                                "value": "a"
+                                            },
+                                            "right_value": {
+                                                "type": "IntegerLiteral",
+                                                "value": 20
+                                            }
+                                        }
+                                    ]
+                                },
+                                "alternative": {
+                                    "type": "BlockStatement",
+                                    "statements": [
+                                        {
+                                            "type": "AssignStatement",
+                                            "ident": {
+                                                "type": "IdentifierLiteral",
+                                                "value": "a"
+                                            },
+                                            "right_value": {
+                                                "type": "IntegerLiteral",
+                                                "value": 30
+                                            }
+                                        }
+                                    ]
+                                }
+                            }
                         },
                         {
                             "type": "ReturnStatement",

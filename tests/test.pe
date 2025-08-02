@@ -1,8 +1,11 @@
-casera add(a: int, b: int) -> int {
-   tomacausa b + a pe
-}
-
 casera main() -> int {
-    pucha a: int ponle 20 pe
+    pucha a: int ponle 5 pe
+
+    sipe a == 5 {
+        a ponle 20 pe
+    } sinope {
+        a ponle 30 pe
+    }
+
     tomacausa a pe
 }
