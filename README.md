@@ -1,5 +1,7 @@
 # PE++
 
+![tests](https://github.com/LuisSalvadorHeysen/pe/actions/workflows/ci.yml/badge.svg)
+
 A small statically typed language compiled to native code through LLVM — with optional Peruvian slang keywords.
 
 ```
