@@ -1,0 +1,8 @@
+// expect: 9
+fn main() -> int {
+    let a = 9;
+    while false {
+        a = 0;
+    }
+    return a;
+}

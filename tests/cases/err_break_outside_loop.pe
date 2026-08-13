@@ -1,0 +1,5 @@
+// error: 'break' used outside of a loop
+fn main() -> int {
+    break;
+    return 0;
+}

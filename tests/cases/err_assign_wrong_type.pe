@@ -1,0 +1,6 @@
+// error: cannot assign a float to it
+fn main() -> int {
+    let a = 5;
+    a = 2.5;
+    return 0;
+}

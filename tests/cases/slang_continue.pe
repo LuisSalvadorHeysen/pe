@@ -1,0 +1,16 @@
+// expect: 12
+// sum the even numbers up to 6 using sigue
+casera main() bota int {
+    pucha sum ponle 0 pe
+    pucha i ponle 0 pe
+
+    dale i < 6 {
+        i ponle i + 1 pe
+        sipe i % 2 != 0 {
+            sigue pe
+        }
+        sum ponle sum + i pe
+    }
+
+    tomacausa sum pe
+}

@@ -1,0 +1,5 @@
+// error: 'a' is declared as int but the value is a float
+fn main() -> int {
+    let a: int = 1.5;
+    return 0;
+}

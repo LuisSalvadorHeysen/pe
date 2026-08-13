@@ -1,0 +1,7 @@
+// expect: 12
+// no type annotations, the compiler infers int from the value
+fn main() -> int {
+    let a = 7;
+    let b = 5;
+    return a + b;
+}

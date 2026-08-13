@@ -1,0 +1,5 @@
+// error: has not been declared
+fn main() -> int {
+    a = 5;
+    return 0;
+}

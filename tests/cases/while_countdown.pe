@@ -1,0 +1,12 @@
+// out: 3
+// out: 2
+// out: 1
+// expect: 0
+fn main() -> int {
+    let i = 3;
+    while i > 0 {
+        print(i);
+        i = i - 1;
+    }
+    return i;
+}

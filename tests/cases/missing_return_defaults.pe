@@ -1,0 +1,5 @@
+// expect: 0
+// a function that falls off the end returns 0
+fn main() -> int {
+    let a = 5;
+}

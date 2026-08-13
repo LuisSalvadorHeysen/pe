@@ -1,0 +1,6 @@
+// expect: 42
+fn main() -> int {
+    let a: int = 40;
+    let b: int = 2;
+    return a + b;
+}

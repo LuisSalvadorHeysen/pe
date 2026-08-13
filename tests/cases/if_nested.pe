@@ -1,0 +1,12 @@
+// expect: 4
+fn main() -> int {
+    let a = 10;
+    if a > 5 {
+        if a > 20 {
+            return 1;
+        } else {
+            return 4;
+        }
+    }
+    return 0;
+}

@@ -1,0 +1,4 @@
+// expect: 2
+fn main() -> int {
+    return 17 % 5;
+}

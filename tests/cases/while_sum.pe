@@ -1,0 +1,11 @@
+// expect: 55
+// sum of 1..10 with a while loop
+fn main() -> int {
+    let sum = 0;
+    let i = 1;
+    while i <= 10 {
+        sum = sum + i;
+        i = i + 1;
+    }
+    return sum;
+}

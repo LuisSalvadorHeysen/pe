@@ -1,0 +1,14 @@
+// expect: 55
+// fib(10) computed with a loop
+fn main() -> int {
+    let a = 0;
+    let b = 1;
+    let i = 0;
+    while i < 10 {
+        let next = a + b;
+        a = b;
+        b = next;
+        i = i + 1;
+    }
+    return a;
+}

@@ -1,0 +1,14 @@
+// expect: 15
+casera add(a: int, b: int) bota int {
+    tomacausa a + b pe
+}
+
+casera main() bota int {
+    pucha a: int ponle 5 pe
+
+    sipe a == 5 {
+        tomacausa add(10, 5) pe
+    } sinope {
+        tomacausa add(10, 1) pe
+    }
+}

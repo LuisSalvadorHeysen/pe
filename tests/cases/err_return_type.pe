@@ -1,0 +1,4 @@
+// error: function returns int but got a float
+fn main() -> int {
+    return 2.5;
+}

@@ -1,0 +1,4 @@
+// error: undefined variable 'b'
+fn main() -> int {
+    return b;
+}

@@ -1,0 +1,4 @@
+// expect: 5
+fn main() -> int {
+    return -5 + 10;
+}

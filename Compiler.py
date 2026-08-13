@@ -2,7 +2,8 @@ from llvmlite import ir
 
 from AST import Node, NodeType, Program, Expression, Statement
 from AST import ExpressionStatement, LetStatement, BlockStatement, FunctionStatement, ReturnStatement, AssignStatement, IfStatement
-from AST import InfixExpression, CallExpression
+from AST import WhileStatement, BreakStatement, ContinueStatement
+from AST import InfixExpression, PrefixExpression, CallExpression
 from AST import IntegerLiteral, FloatLiteral, IdentifierLiteral, BooleanLiteral
 from AST import FunctionParameter
 
@@ -21,6 +22,12 @@ class Compiler:
         self.env : Environment = Environment()
 
         self.errors: list[str] = []
+
+        # Stack of (continue_block, break_block) for the loops we are inside of
+        self.loops: list[tuple[ir.Block, ir.Block]] = []
+
+        # Cache for printf format string globals ("%d\n" etc.)
+        self.fmt_strings: dict[str, ir.GlobalVariable] = {}
 
         self.__initialize_builtins()
 
@@ -43,6 +50,10 @@ class Compiler:
         self.env.define('true', true_var, true_var.type)
         self.env.define('false', false_var, false_var.type)
 
+        # Declare C's printf so print() has something to call
+        printf_type = ir.FunctionType(ir.IntType(32), [ir.IntType(8).as_pointer()], var_arg=True)
+        self.printf = ir.Function(self.module, printf_type, name='printf')
+
     def compile(self, node: Node) -> None:
         match node.type():
             case NodeType.Program:
@@ -63,15 +74,27 @@ class Compiler:
                 self.__visit_assign_statement(node)
             case NodeType.IfStatement:
                 self.__visit_if_statement(node)
+            case NodeType.WhileStatement:
+                self.__visit_while_statement(node)
+            case NodeType.BreakStatement:
+                self.__visit_break_statement(node)
+            case NodeType.ContinueStatement:
+                self.__visit_continue_statement(node)
 
             case NodeType.InfixExpression:
                 self.__visit_infix_expression(node)
+            case NodeType.PrefixExpression:
+                self.__visit_prefix_expression(node)
             case NodeType.CallExpression:
                 self.__visit_call_expression(node)
             
     # region Visit Methods
     def __visit_program(self, node: Program) -> None:
         for stmt in node.statements:
+            if stmt.type() != NodeType.FunctionStatement:
+                self.errors.append("COMPILE ERROR: only function definitions are allowed at the top level")
+                continue
+
             self.compile(stmt)
 
 
@@ -82,10 +105,15 @@ class Compiler:
     def __visit_let_statement(self, node: LetStatement) -> None:
         name: str = node.name.value
         value: Expression = node.value
-        value_type: str = node.value_type
 
         value, Type = self.__resolve_value(node=value)
-        
+
+        # If the let has a type annotation, make sure the value matches it.
+        # Without one the variable just takes the type of its value.
+        if node.value_type is not None and Type != self.type_map[node.value_type]:
+            self.errors.append(f"TYPE ERROR line {node.line_no}: '{name}' is declared as {node.value_type} but the value is a {self.__type_name(Type)}")
+            return
+
         if self.env.lookup(name) is None:
             # Define and allocate the value
             ptr = self.builder.alloca(Type)
@@ -102,10 +130,19 @@ class Compiler:
     def __visit_block_statement(self, node: BlockStatement) -> None:
         for stmt in node.statements:
             self.compile(stmt)
-    
+
+            # Anything after a return / break / continue is unreachable, skip it
+            if self.builder.block is not None and self.builder.block.is_terminated:
+                break
+
     def __visit_return_statement(self, node: ReturnStatement) -> None:
         value: Expression = node.return_value
         value, Type = self.__resolve_value(value)
+
+        expected: ir.Type = self.builder.function.function_type.return_type
+        if Type != expected:
+            self.errors.append(f"TYPE ERROR line {node.line_no}: function returns {self.__type_name(expected)} but got a {self.__type_name(Type)}")
+            return
 
         self.builder.ret(value)
     
@@ -122,7 +159,7 @@ class Compiler:
         return_type: ir.Type = self.type_map[node.return_type]
 
         fnty: ir.FunctionType = ir.FunctionType(return_type, param_types)
-        func: ir.Fuction = ir.Function(self.module, fnty, name=name)
+        func: ir.Function = ir.Function(self.module, fnty, name=name)
 
         block: ir.Block = func.append_basic_block(f"{name}_entry")
 
@@ -151,6 +188,11 @@ class Compiler:
 
         self.compile(body)
 
+        # If control can fall off the end of the function, return a zero
+        # of the right type so every block ends with a terminator
+        if not self.builder.block.is_terminated:
+            self.builder.ret(ir.Constant(return_type, 0.0 if isinstance(return_type, ir.FloatType) else 0))
+
         self.env = previous_env
         self.env.define(name, func, return_type)
 
@@ -161,19 +203,29 @@ class Compiler:
         value: Expression = node.right_value
 
         value, Type = self.__resolve_value(value)
-        
+
         if self.env.lookup(name) is None:
-            self.errors.append(f"COMPILE ERROR: Identifier {name} has not been declared before it was re-assigned")
-        else:
-            ptr, _ = self.env.lookup(name)
-            self.builder.store(value, ptr)
-    
+            self.errors.append(f"COMPILE ERROR line {node.line_no}: identifier '{name}' has not been declared before it was assigned to")
+            return
+
+        ptr, var_type = self.env.lookup(name)
+
+        if Type != var_type:
+            self.errors.append(f"TYPE ERROR line {node.line_no}: '{name}' is a {self.__type_name(var_type)}, cannot assign a {self.__type_name(Type)} to it")
+            return
+
+        self.builder.store(value, ptr)
+
     def __visit_if_statement(self, node: IfStatement) -> None:
         condition = node.condition
         consequence = node.consequence
         alternative = node.alternative
 
-        test, _ = self.__resolve_value(condition)
+        test, test_type = self.__resolve_value(condition)
+
+        if test_type != ir.IntType(1):
+            self.errors.append(f"TYPE ERROR line {node.line_no}: if condition must be a bool, got a {self.__type_name(test_type)}")
+            test = ir.Constant(ir.IntType(1), 0)
 
         if alternative is None:
             with self.builder.if_then(test):
@@ -184,7 +236,56 @@ class Compiler:
                     self.compile(consequence)
                 with otherwise:
                     self.compile(alternative)
-                
+
+    def __visit_while_statement(self, node: WhileStatement) -> None:
+        func: ir.Function = self.builder.function
+
+        cond_block: ir.Block = func.append_basic_block('while_cond')
+        body_block: ir.Block = func.append_basic_block('while_body')
+        exit_block: ir.Block = func.append_basic_block('while_exit')
+
+        # Jump from the current block into the condition check
+        self.builder.branch(cond_block)
+
+        self.builder.position_at_start(cond_block)
+
+        test, test_type = self.__resolve_value(node.condition)
+        if test_type != ir.IntType(1):
+            self.errors.append(f"TYPE ERROR line {node.line_no}: while condition must be a bool, got a {self.__type_name(test_type)}")
+            test = ir.Constant(ir.IntType(1), 0)
+
+        self.builder.cbranch(test, body_block, exit_block)
+
+        # break/continue inside the body need to know where to jump to
+        self.loops.append((cond_block, exit_block))
+
+        self.builder.position_at_start(body_block)
+        self.compile(node.body)
+
+        # Loop back to the condition, unless the body already jumped somewhere
+        if not self.builder.block.is_terminated:
+            self.builder.branch(cond_block)
+
+        self.loops.pop()
+
+        self.builder.position_at_start(exit_block)
+
+    def __visit_break_statement(self, node: BreakStatement) -> None:
+        if len(self.loops) == 0:
+            self.errors.append(f"COMPILE ERROR line {node.line_no}: 'break' used outside of a loop")
+            return
+
+        cond_block, exit_block = self.loops[-1]
+        self.builder.branch(exit_block)
+
+    def __visit_continue_statement(self, node: ContinueStatement) -> None:
+        if len(self.loops) == 0:
+            self.errors.append(f"COMPILE ERROR line {node.line_no}: 'continue' used outside of a loop")
+            return
+
+        cond_block, exit_block = self.loops[-1]
+        self.builder.branch(cond_block)
+
     # endregion
 
     # region Expressions
@@ -193,8 +294,27 @@ class Compiler:
         left_value, left_type = self.__resolve_value(node.left_node)
         right_value, right_type = self.__resolve_value(node.right_node)
 
+        if left_type != right_type:
+            self.errors.append(f"TYPE ERROR line {node.line_no}: cannot use '{operator}' on a {self.__type_name(left_type)} and a {self.__type_name(right_type)}")
+            return ir.Constant(self.type_map['int'], 0), self.type_map['int']
+
         value = None
         Type = None
+
+        # Booleans only support == and !=
+        if left_type == ir.IntType(1):
+            match operator:
+                case '==':
+                    value = self.builder.icmp_signed('==', left_value, right_value)
+                case '!=':
+                    value = self.builder.icmp_signed('!=', left_value, right_value)
+
+            if value is None:
+                self.errors.append(f"TYPE ERROR line {node.line_no}: cannot use '{operator}' on bools")
+                return ir.Constant(self.type_map['int'], 0), self.type_map['int']
+
+            return value, ir.IntType(1)
+
         if isinstance(right_type, ir.IntType) and isinstance(left_type, ir.IntType):
             Type = self.type_map['int']
             match operator:
@@ -208,9 +328,6 @@ class Compiler:
                     value = self.builder.sdiv(left_value, right_value)
                 case '%':
                     value = self.builder.srem(left_value, right_value)
-                case '^':
-                    # TODO
-                    pass
                 case '<':
                     value = self.builder.icmp_signed('<', left_value, right_value)
                     Type = ir.IntType(1)
@@ -243,9 +360,6 @@ class Compiler:
                     value = self.builder.fdiv(left_value, right_value)
                 case '%':
                     value = self.builder.frem(left_value, right_value)
-                case '^':
-                    # TODO
-                    pass
                 case '<':
                     value = self.builder.fcmp_ordered('<', left_value, right_value)
                     Type = ir.IntType(1)
@@ -263,8 +377,28 @@ class Compiler:
                     Type = ir.IntType(1)   
                 case '!=':
                     value = self.builder.fcmp_ordered('!=', left_value, right_value)
-                    Type = ir.IntType(1)                
+                    Type = ir.IntType(1)
+
+        if value is None:
+            self.errors.append(f"COMPILE ERROR line {node.line_no}: operator '{operator}' is not supported for {self.__type_name(left_type)}s")
+            return ir.Constant(self.type_map['int'], 0), self.type_map['int']
+
         return value, Type
+
+    def __visit_prefix_expression(self, node: PrefixExpression) -> tuple[ir.Value, ir.Type]:
+        value, Type = self.__resolve_value(node.right_node)
+
+        match node.operator:
+            case '-':
+                if isinstance(Type, ir.FloatType):
+                    return self.builder.fneg(value), Type
+                if Type == ir.IntType(1):
+                    self.errors.append(f"TYPE ERROR line {node.line_no}: cannot negate a bool")
+                    return ir.Constant(self.type_map['int'], 0), self.type_map['int']
+                return self.builder.neg(value), Type
+
+        self.errors.append(f"COMPILE ERROR line {node.line_no}: unknown prefix operator '{node.operator}'")
+        return ir.Constant(self.type_map['int'], 0), self.type_map['int']
 
     def __visit_call_expression(self, node: CallExpression) -> tuple[ir.Instruction, ir.Type]:
         name: str = node.function.value
@@ -272,7 +406,7 @@ class Compiler:
 
         args = []
         types = []
-        
+
         if len(params) > 0:
             for x in params:
                 p_val, p_type = self.__resolve_value(x)
@@ -280,8 +414,21 @@ class Compiler:
                 types.append(p_type)
 
         match name:
+            case 'print' | 'habla':
+                ret = self.__builtin_print(args, types)
+                ret_type = self.type_map['int']
             case _:
-                func, ret_type = self.env.lookup(name)
+                entry = self.env.lookup(name)
+                if entry is None:
+                    self.errors.append(f"COMPILE ERROR line {node.line_no}: undefined function '{name}'")
+                    return ir.Constant(self.type_map['int'], 0), self.type_map['int']
+
+                func, ret_type = entry
+
+                if len(args) != len(func.args):
+                    self.errors.append(f"COMPILE ERROR line {node.line_no}: '{name}' takes {len(func.args)} argument(s), got {len(args)}")
+                    return ir.Constant(self.type_map['int'], 0), self.type_map['int']
+
                 ret = self.builder.call(func, args)
 
         return ret, ret_type
@@ -291,6 +438,48 @@ class Compiler:
     # endregion
 
     # region Helper Methods
+    def __type_name(self, Type: ir.Type) -> str:
+        """ Turns an LLVM type back into a PE++ type name for error messages """
+        if isinstance(Type, ir.FloatType):
+            return 'float'
+        if isinstance(Type, ir.IntType) and Type.width == 1:
+            return 'bool'
+        if isinstance(Type, ir.IntType):
+            return 'int'
+        return str(Type)
+
+    def __fmt_string(self, name: str, text: str) -> ir.Value:
+        """ Gets (or creates) a global constant like "%d\n" for printf """
+        if name not in self.fmt_strings:
+            data = bytearray(text.encode('utf8') + b'\x00')
+            typ = ir.ArrayType(ir.IntType(8), len(data))
+
+            g = ir.GlobalVariable(self.module, typ, name)
+            g.initializer = ir.Constant(typ, data)
+            g.global_constant = True
+
+            self.fmt_strings[name] = g
+
+        return self.builder.bitcast(self.fmt_strings[name], ir.IntType(8).as_pointer())
+
+    def __builtin_print(self, args: list[ir.Value], types: list[ir.Type]) -> ir.Value:
+        """ print(a, b, ...) -> one printf call per argument, one line each """
+        ret = ir.Constant(self.type_map['int'], 0)
+
+        for value, typ in zip(args, types):
+            if isinstance(typ, ir.FloatType):
+                fmt = self.__fmt_string('fmt_float', '%g\n')
+                # varargs promote floats to doubles in C, printf expects that
+                value = self.builder.fpext(value, ir.DoubleType())
+            else:
+                fmt = self.__fmt_string('fmt_int', '%d\n')
+                if typ.width == 1:
+                    value = self.builder.zext(value, self.type_map['int'])
+
+            ret = self.builder.call(self.printf, [fmt, value])
+
+        return ret
+
     def __resolve_value(self, node: Expression, value_type: str = None) -> tuple[ir.Value, ir.Type]:
         match node.type():
             case NodeType.IntegerLiteral:
@@ -303,7 +492,12 @@ class Compiler:
                return ir.Constant(Type, value), Type
             case NodeType.IdentifierLiteral:
                node: IdentifierLiteral = node
-               ptr, Type = self.env.lookup(node.value)
+               entry = self.env.lookup(node.value)
+               if entry is None:
+                   self.errors.append(f"COMPILE ERROR line {node.line_no}: undefined variable '{node.value}'")
+                   return ir.Constant(self.type_map['int'], 0), self.type_map['int']
+
+               ptr, Type = entry
                return self.builder.load(ptr), Type
             case NodeType.BooleanLiteral:
                node: BooleanLiteral = node
@@ -311,7 +505,9 @@ class Compiler:
             # Expression Values
             case NodeType.InfixExpression:
                 return self.__visit_infix_expression(node)
+            case NodeType.PrefixExpression:
+                return self.__visit_prefix_expression(node)
             case NodeType.CallExpression:
-                return self.__visit_call_expression(node)            
+                return self.__visit_call_expression(node)
 
     # endregion

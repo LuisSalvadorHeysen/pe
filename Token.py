@@ -48,6 +48,9 @@ class TokenType(Enum):
    ELSE = "ELSE"
    TRUE = "TRUE"
    FALSE = "FALSE"
+   WHILE = "WHILE"
+   BREAK = "BREAK"
+   CONTINUE = "CONTINUE"
 
    # Types
    TYPE = "TYPE"
@@ -60,7 +63,7 @@ class Token:
         self.position = position
 
     def __str__(self) -> str:
-        return f"Token[{self.type} : {self.literal} : Line {self.line_no} : Positionn {self.position}]"
+        return f"Token[{self.type} : {self.literal} : Line {self.line_no} : Column {self.position}]"
 
     def __repr__(self) -> str:
         return str(self)
@@ -73,6 +76,9 @@ KEYWORDS: dict[str, TokenType] = {
     "else": TokenType.ELSE,
     "true": TokenType.TRUE,
     "false": TokenType.FALSE,
+    "while": TokenType.WHILE,
+    "break": TokenType.BREAK,
+    "continue": TokenType.CONTINUE,
 }
 
 ALT_KEYWORDS: dict[str, TokenType] = {
@@ -83,10 +89,13 @@ ALT_KEYWORDS: dict[str, TokenType] = {
     "tomacausa": TokenType.RETURN,
     "bota": TokenType.ARROW,
     "sipe": TokenType.IF,
-    "sinope": TokenType.ELSE
+    "sinope": TokenType.ELSE,
+    "dale": TokenType.WHILE,
+    "corta": TokenType.BREAK,
+    "sigue": TokenType.CONTINUE,
 }
 
-TYPE_KEYWORDS: list[str] = ["int", "float"]
+TYPE_KEYWORDS: list[str] = ["int", "float", "bool"]
 
 def lookup_ident(ident: str) -> TokenType:
     tt: TokenType | None = KEYWORDS.get(ident)

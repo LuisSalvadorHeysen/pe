@@ -1,0 +1,8 @@
+// out: 1
+// out: 0
+// expect: 0
+fn main() -> int {
+    print(1.5 < 2.5);
+    print(1.5 > 2.5);
+    return 0;
+}

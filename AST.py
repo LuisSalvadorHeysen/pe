@@ -12,9 +12,13 @@ class NodeType(Enum):
     ReturnStatement = "ReturnStatement"
     AssignStatement = "AssignStatement"
     IfStatement = "IfStatement"
+    WhileStatement = "WhileStatement"
+    BreakStatement = "BreakStatement"
+    ContinueStatement = "ContinueStatement"
 
     # Expressions
     InfixExpression = "InfixExpression"
+    PrefixExpression = "PrefixExpression"
     CallExpression = "CallExpression"
 
     # Literals
@@ -88,9 +92,11 @@ class ExpressionStatement(Statement):
         }
 
 class LetStatement(Statement):
-    def __init__(self, name: Expression = None, value: Expression = None, value_type: str = None) -> None:
+    def __init__(self, name: Expression = None, value: Expression = None, value_type: str = None, line_no: int = None) -> None:
         self.name: Expression = name
         self.value: Expression = value
+        self.value_type: str = value_type
+        self.line_no: int = line_no
 
     def type(self) -> NodeType:
         return NodeType.LetStatement
@@ -117,8 +123,9 @@ class BlockStatement(Statement):
         }
 
 class ReturnStatement(Statement):
-    def __init__(self, return_value: Expression = None) -> None:
+    def __init__(self, return_value: Expression = None, line_no: int = None) -> None:
         self.return_value = return_value
+        self.line_no = line_no
 
     def type(self) -> NodeType:
         return NodeType.ReturnStatement
@@ -130,8 +137,8 @@ class ReturnStatement(Statement):
         }
 
 class FunctionStatement(Statement):
-    def __init__(self, parameters: list[FunctionParameter] = [], body: BlockStatement = None, name = None, return_type: str = None) -> None:
-        self.parameters = parameters
+    def __init__(self, parameters: list[FunctionParameter] = None, body: BlockStatement = None, name = None, return_type: str = None) -> None:
+        self.parameters = parameters if parameters is not None else []
         self.body = body
         self.name = name
         self.return_type = return_type
@@ -149,9 +156,10 @@ class FunctionStatement(Statement):
         }
 
 class AssignStatement(Statement):
-    def __init__(self, ident: Expression = None, right_value: Expression = None) -> None:
+    def __init__(self, ident: Expression = None, right_value: Expression = None, line_no: int = None) -> None:
         self.ident = ident
         self.right_value = right_value
+        self.line_no = line_no
 
     def type(self) -> NodeType:
         return NodeType.AssignStatement
@@ -164,10 +172,11 @@ class AssignStatement(Statement):
         }
 
 class IfStatement(Statement):
-    def __init__(self, condition: Expression = None, consequence: BlockStatement = None, alternative: BlockStatement = None) -> None:
+    def __init__(self, condition: Expression = None, consequence: BlockStatement = None, alternative: BlockStatement = None, line_no: int = None) -> None:
         self.condition = condition
         self.consequence = consequence
         self.alternative = alternative
+        self.line_no = line_no
 
     def type(self) -> NodeType:
         return NodeType.IfStatement
@@ -180,15 +189,56 @@ class IfStatement(Statement):
             "alternative": self.alternative.json(),
         }
 
+class WhileStatement(Statement):
+    def __init__(self, condition: Expression = None, body: BlockStatement = None, line_no: int = None) -> None:
+        self.condition = condition
+        self.body = body
+        self.line_no = line_no
+
+    def type(self) -> NodeType:
+        return NodeType.WhileStatement
+
+    def json(self) -> dict:
+        return {
+            "type": self.type().value,
+            "condition": self.condition.json(),
+            "body": self.body.json(),
+        }
+
+class BreakStatement(Statement):
+    def __init__(self, line_no: int = None) -> None:
+        self.line_no = line_no
+
+    def type(self) -> NodeType:
+        return NodeType.BreakStatement
+
+    def json(self) -> dict:
+        return {
+            "type": self.type().value
+        }
+
+class ContinueStatement(Statement):
+    def __init__(self, line_no: int = None) -> None:
+        self.line_no = line_no
+
+    def type(self) -> NodeType:
+        return NodeType.ContinueStatement
+
+    def json(self) -> dict:
+        return {
+            "type": self.type().value
+        }
+
 # endregion
 
 # region Expressions
 class InfixExpression(Expression):
-    def __init__(self, left_node: Expression, operator: str, right_node: Expression = None) -> None:
+    def __init__(self, left_node: Expression, operator: str, right_node: Expression = None, line_no: int = None) -> None:
        self.left_node: Expression = left_node
        self.operator: str = operator
        self.right_node: Expression = right_node
-    
+       self.line_no: int = line_no
+
     def type(self) -> NodeType:
         return NodeType.InfixExpression
     
@@ -200,10 +250,27 @@ class InfixExpression(Expression):
             "right_node": self.right_node.json()  
         }
 
+class PrefixExpression(Expression):
+    def __init__(self, operator: str = None, right_node: Expression = None, line_no: int = None) -> None:
+       self.operator: str = operator
+       self.right_node: Expression = right_node
+       self.line_no: int = line_no
+
+    def type(self) -> NodeType:
+        return NodeType.PrefixExpression
+
+    def json(self) -> dict:
+        return {
+            "type": self.type().value,
+            "operator": self.operator,
+            "right_node": self.right_node.json()
+        }
+
 class CallExpression(Expression):
-    def __init__(self, function: Expression = None, arguments: list[Expression] = None) -> None:
+    def __init__(self, function: Expression = None, arguments: list[Expression] = None, line_no: int = None) -> None:
        self.function = function
        self.arguments = arguments
+       self.line_no = line_no
     
     def type(self) -> NodeType:
         return NodeType.CallExpression
@@ -244,8 +311,9 @@ class FloatLiteral(Expression):
         }
 
 class IdentifierLiteral(Expression):
-    def __init__(self, value: str = None) -> None:
+    def __init__(self, value: str = None, line_no: int = None) -> None:
        self.value: str = value
+       self.line_no: int = line_no
     
     def type(self) -> NodeType:
         return NodeType.IdentifierLiteral

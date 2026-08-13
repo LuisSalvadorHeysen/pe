@@ -1,0 +1,4 @@
+// error: undefined function 'nope'
+fn main() -> int {
+    return nope(1);
+}

@@ -1,0 +1,22 @@
+// While loops, break and continue, all in slang
+casera main() bota int {
+    pucha sum ponle 0 pe
+    pucha i ponle 0 pe
+
+    dale i < 100 {
+        i ponle i + 1 pe
+
+        sipe i % 2 == 0 {
+            sigue pe
+        }
+
+        sipe i > 20 {
+            corta pe
+        }
+
+        sum ponle sum + i pe
+    }
+
+    habla(sum) pe
+    tomacausa 0 pe
+}

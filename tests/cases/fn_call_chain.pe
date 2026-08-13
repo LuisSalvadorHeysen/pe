@@ -1,0 +1,12 @@
+// expect: 21
+fn triple(x: int) -> int {
+    return x * 3;
+}
+
+fn add_one(x: int) -> int {
+    return x + 1;
+}
+
+fn main() -> int {
+    return triple(add_one(add_one(5)));
+}

@@ -7,13 +7,22 @@ class Lexer:
 
         self.position = -1;
         self.read_position: int = 0
-        self.line_no: int = 0
+        self.line_no: int = 1
+        self.line_start: int = 0  # where the current line begins, for column numbers
 
         self.current_char: str | None = None
+
+        # Start position of the token being read (set in next_token)
+        self.tok_line: int = 1
+        self.tok_col: int = 1
 
         self.__read_char()
 
     def __read_char(self) -> None:
+        if self.current_char == '\n':
+            self.line_no += 1
+            self.line_start = self.read_position
+
         if self.read_position >= len(self.source):
             self.current_char = None
         else:
@@ -30,14 +39,18 @@ class Lexer:
         return self.source[self.read_position]
 
     def skip_whitespace(self) -> None:
-        while self.current_char in [' ', '\t', '\n', '\r']:
-            if self.current_char == '\n':
-                self.line_no += 1
-            
-            self.__read_char()
+        while True:
+            if self.current_char in [' ', '\t', '\n', '\r']:
+                self.__read_char()
+            elif self.current_char == '/' and self.__peek_char() == '/':
+                # Comments run to the end of the line
+                while self.current_char is not None and self.current_char != '\n':
+                    self.__read_char()
+            else:
+                break
 
     def __new_token(self, tt: TokenType, literal: Any):
-        return Token(type=tt, literal=literal, line_no=self.line_no, position=self.position)
+        return Token(type=tt, literal=literal, line_no=self.tok_line, position=self.tok_col)
 
     def __is_digit(self, ch: str) -> bool:
         return '0' <= ch and ch <= '9'
@@ -82,17 +95,21 @@ class Lexer:
 
         self.skip_whitespace()
 
+        # Remember where this token starts so error messages point at it
+        self.tok_line = self.line_no
+        self.tok_col = self.position - self.line_start + 1
+
         match self.current_char:
             case '+':
                 tok = self.__new_token(TokenType.PLUS, self.current_char)
             case '-':
-                # Handle the arrow
-                if self.__peek_char:
+                # Handle the arrow ->
+                if self.__peek_char() == '>':
                     ch = self.current_char
                     self.__read_char();
                     tok = self.__new_token(TokenType.ARROW, ch + self.current_char)
                 else:
-                    tok = self.__new_token(TokenType.MINUS, self.current_char)                   
+                    tok = self.__new_token(TokenType.MINUS, self.current_char)
 
             case '*':
                 tok = self.__new_token(TokenType.ASTERISK, self.current_char)

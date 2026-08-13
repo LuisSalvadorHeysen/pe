@@ -1,0 +1,13 @@
+// expect: 10
+casera main() bota int {
+    pucha i ponle 0 pe
+
+    dale i < 100 {
+        i ponle i + 2 pe
+        sipe i == 10 {
+            corta pe
+        }
+    }
+
+    tomacausa i pe
+}

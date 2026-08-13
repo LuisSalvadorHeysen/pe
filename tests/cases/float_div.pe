@@ -1,0 +1,7 @@
+// out: 3.5
+// expect: 0
+fn main() -> int {
+    let x: float = 7.0;
+    print(x / 2.0);
+    return 0;
+}

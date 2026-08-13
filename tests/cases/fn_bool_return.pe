@@ -1,0 +1,12 @@
+// out: 1
+// out: 0
+// expect: 0
+fn is_even(n: int) -> bool {
+    return n % 2 == 0;
+}
+
+fn main() -> int {
+    print(is_even(4));
+    print(is_even(7));
+    return 0;
+}

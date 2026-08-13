@@ -1,0 +1,10 @@
+// out: 6.28
+// expect: 0
+fn double(x: float) -> float {
+    return x * 2.0;
+}
+
+fn main() -> int {
+    print(double(3.14));
+    return 0;
+}

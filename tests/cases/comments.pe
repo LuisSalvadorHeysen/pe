@@ -1,0 +1,6 @@
+// expect: 4
+fn main() -> int {
+    // a comment on its own line
+    let a = 4; // and one after code
+    return a;
+}

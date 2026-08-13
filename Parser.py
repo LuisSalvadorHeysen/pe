@@ -5,7 +5,8 @@ from enum import Enum, auto
 
 from AST import Statement, Expression, Program
 from AST import ExpressionStatement, LetStatement, FunctionStatement, ReturnStatement, BlockStatement, AssignStatement, IfStatement
-from AST import InfixExpression, CallExpression
+from AST import WhileStatement, BreakStatement, ContinueStatement
+from AST import InfixExpression, PrefixExpression, CallExpression
 from AST import IntegerLiteral, FloatLiteral, IdentifierLiteral, BooleanLiteral
 from AST import FunctionParameter
 
@@ -55,7 +56,8 @@ class Parser:
             TokenType.LPAREN: self.__parse_grouped_expression,
             TokenType.IF: self.__parse_if_statement,
             TokenType.TRUE: self.__parse_boolean,
-            TokenType.FALSE: self.__parse_boolean
+            TokenType.FALSE: self.__parse_boolean,
+            TokenType.MINUS: self.__parse_prefix_expression
         }
 
         self.infix_parse_fns: dict[TokenType, Callable] = {
@@ -109,10 +111,10 @@ class Parser:
         return prec
 
     def __peek_error(self, tt: TokenType):
-        self.errors.append(f"Expected next token to be {tt}, got {self.peek_token.type} instead.")
+        self.errors.append(f"SYNTAX ERROR line {self.peek_token.line_no}, column {self.peek_token.position}: expected {tt.name}, got {self.peek_token.type.name} ('{self.peek_token.literal}')")
 
     def __no_prefix_parse_fn_error(self, tt: TokenType):
-        self.errors.append(f"No Prefix Parser Function for {tt} found.")
+        self.errors.append(f"SYNTAX ERROR line {self.current_token.line_no}, column {self.current_token.position}: unexpected token {tt.name} ('{self.current_token.literal}')")
 
     # endregion
     
@@ -140,6 +142,12 @@ class Parser:
                 return self.__parse_function_statement()
             case TokenType.RETURN:
                 return self.__parse_return_statement()
+            case TokenType.WHILE:
+                return self.__parse_while_statement()
+            case TokenType.BREAK:
+                return self.__parse_break_statement()
+            case TokenType.CONTINUE:
+                return self.__parse_continue_statement()
             case _:
                 return self.__parse_expression_statement()
 
@@ -154,30 +162,31 @@ class Parser:
 
     def __parse_let_statement(self) -> LetStatement:
         # let a : int = 20;
-        stmt: LetStatement = LetStatement()
+        # let a = 20;   (type gets inferred from the value)
+        stmt: LetStatement = LetStatement(line_no=self.current_token.line_no)
         if not self.__expect_peek(TokenType.IDENT):
             return None
-        
-        stmt.name = IdentifierLiteral(value=self.current_token.literal)
 
-        if not self.__expect_peek(TokenType.COLON):
-            return None
-        
-        if not self.__expect_peek(TokenType.TYPE):
-            return None
+        stmt.name = IdentifierLiteral(value=self.current_token.literal, line_no=self.current_token.line_no)
 
-        stmt.value_type  = self.current_token.literal
+        if self.__peek_token_is(TokenType.COLON):
+            self.__next_token()
+
+            if not self.__expect_peek(TokenType.TYPE):
+                return None
+
+            stmt.value_type  = self.current_token.literal
 
         if not self.__expect_peek(TokenType.EQ):
-            return None          
+            return None
 
         self.__next_token()
 
         stmt.value = self.__parse_expression(PrecedenceType.P_LOWEST)
 
-        while not self.__current_token_is(TokenType.SEMICOLON) and not self.__current_token_is(TokenType.EOF):
-            self.__next_token()
-        
+        if not self.__expect_peek(TokenType.SEMICOLON):
+            return None
+
         return stmt
 
     def __parse_function_statement(self) -> FunctionStatement:
@@ -247,7 +256,7 @@ class Parser:
         return params
 
     def __parse_return_statement(self) -> ReturnStatement:
-        stmt: ReturnStatement = ReturnStatement()
+        stmt: ReturnStatement = ReturnStatement(line_no=self.current_token.line_no)
 
         self.__next_token()
 
@@ -273,16 +282,17 @@ class Parser:
         return block_stmt
 
     def __parse_assignment_statement(self) -> AssignStatement:
-        stmt: AssignStatement = AssignStatement()
+        stmt: AssignStatement = AssignStatement(line_no=self.current_token.line_no)
 
-        stmt.ident = IdentifierLiteral(value=self.current_token.literal)
+        stmt.ident = IdentifierLiteral(value=self.current_token.literal, line_no=self.current_token.line_no)
 
         self.__next_token()  # skips the IDENT
         self.__next_token()  # skips the = 
 
         stmt.right_value = self.__parse_expression(PrecedenceType.P_LOWEST)
 
-        self.__next_token()
+        if not self.__expect_peek(TokenType.SEMICOLON):
+            return None
 
         return stmt
 
@@ -290,6 +300,7 @@ class Parser:
         condition: Expression = None
         consequence: BlockStatement = None
         alternative: BlockStatement = None
+        line_no: int = self.current_token.line_no
 
         self.__next_token()
 
@@ -306,9 +317,40 @@ class Parser:
             if not self.__expect_peek(TokenType.LBRACE):
                 return None
         
-            alternative = self.__parse_block_statement()            
-        
-        return IfStatement(condition, consequence, alternative)
+            alternative = self.__parse_block_statement()
+
+        return IfStatement(condition, consequence, alternative, line_no)
+
+    def __parse_while_statement(self) -> WhileStatement:
+        # while a < 10 { ... }
+        stmt: WhileStatement = WhileStatement(line_no=self.current_token.line_no)
+
+        self.__next_token()
+
+        stmt.condition = self.__parse_expression(PrecedenceType.P_LOWEST)
+
+        if not self.__expect_peek(TokenType.LBRACE):
+            return None
+
+        stmt.body = self.__parse_block_statement()
+
+        return stmt
+
+    def __parse_break_statement(self) -> BreakStatement:
+        stmt: BreakStatement = BreakStatement(line_no=self.current_token.line_no)
+
+        if self.__peek_token_is(TokenType.SEMICOLON):
+            self.__next_token()
+
+        return stmt
+
+    def __parse_continue_statement(self) -> ContinueStatement:
+        stmt: ContinueStatement = ContinueStatement(line_no=self.current_token.line_no)
+
+        if self.__peek_token_is(TokenType.SEMICOLON):
+            self.__next_token()
+
+        return stmt
 
     # endregion
 
@@ -334,8 +376,8 @@ class Parser:
 
     # region Expression methods
     def __parse_infix_expression(self, left_node: Expression) -> Expression:
-        infix_expr: InfixExpression = InfixExpression(left_node=left_node, operator=self.current_token.literal)
-        
+        infix_expr: InfixExpression = InfixExpression(left_node=left_node, operator=self.current_token.literal, line_no=self.current_token.line_no)
+
         precedence = self.__current_precedence()
         self.__next_token()
 
@@ -354,7 +396,7 @@ class Parser:
         return expr
 
     def __parse_call_expression(self, function: Expression) -> None:
-        expr: CallExpression = CallExpression(function=function)
+        expr: CallExpression = CallExpression(function=function, line_no=self.current_token.line_no)
         expr.arguments = self.__parse_expression_list(TokenType.RPAREN)
         
         return expr
@@ -382,8 +424,18 @@ class Parser:
     # endregion
 
     # region Prefix Methods
+    def __parse_prefix_expression(self) -> Expression:
+        # -5, -(a + b), etc.
+        prefix_expr: PrefixExpression = PrefixExpression(operator=self.current_token.literal, line_no=self.current_token.line_no)
+
+        self.__next_token()
+
+        prefix_expr.right_node = self.__parse_expression(PrecedenceType.P_PREFIX)
+
+        return prefix_expr
+
     def __parse_identifier(self) -> Expression:
-        return IdentifierLiteral(value=self.current_token.literal)
+        return IdentifierLiteral(value=self.current_token.literal, line_no=self.current_token.line_no)
 
     def __parse_int_literal(self) -> Expression:
         int_lit: IntegerLiteral = IntegerLiteral()

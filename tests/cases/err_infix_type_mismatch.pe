@@ -1,0 +1,4 @@
+// error: cannot use '+' on a int and a float
+fn main() -> int {
+    return 1 + 2.5;
+}

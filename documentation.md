@@ -1,157 +1,108 @@
-# Peruvian Programming Language Documentation
+# PE++ Language Reference
 
-This document outlines the syntax and features of the Peruvian Programming Language.
+The README covers the compiler architecture and a quick tour; this is the full language reference.
 
 ## Comments
 
-The language currently does not support comments.
+```
+// comments run to the end of the line
+```
 
-## Data Types
+## Data types
 
-- **Integer:** `int` (e.g., `10`, `25`, `100`)
-- **Float:** `float` (e.g., `3.14`, `2.71`, `1.0`)
-- **Boolean:** `bool` (e.g., `alafirme`, `floro`)
+| type    | LLVM type | examples            |
+|---------|-----------|---------------------|
+| `int`   | `i32`     | `10`, `-3`          |
+| `float` | `float`   | `3.14`, `1.0`       |
+| `bool`  | `i1`      | `true`, `false`     |
+
+Types never convert implicitly — mixing an `int` and a `float` in one expression is a compile-time type error.
 
 ## Keywords
 
-- `let` or `dale`: Used for variable declaration.
-- `sipe`: Used as a statement terminator, completely equivalent to a semicolon (`;`). If `sipe` is used, a semicolon is not needed, and vice-versa.
-- `alafirme`: Represents the boolean value `true`.
-- `floro`: Represents the boolean value `false`.
-- `if`: Used for conditional statements.
-- `else`: Used with `if` for alternative execution paths.
-- `return`: Used to return a value from a function.
-- `fn`: Used to define a function.
+Every keyword has a standard spelling and a Peruvian slang spelling. They are interchangeable everywhere:
+
+| standard   | slang       |
+|------------|-------------|
+| `let`      | `pucha`     |
+| `=`        | `ponle`     |
+| `;`        | `pe`        |
+| `fn`       | `casera`    |
+| `return`   | `tomacausa` |
+| `->`       | `bota`      |
+| `if`       | `sipe`      |
+| `else`     | `sinope`    |
+| `while`    | `dale`      |
+| `break`    | `corta`     |
+| `continue` | `sigue`     |
+| `print`    | `habla`     |
 
 ## Operators
 
-### Arithmetic Operators
+- Arithmetic: `+  -  *  /  %` (both operands must have the same type)
+- Comparison: `==  !=  <  <=  >  >=` (produce a `bool`; bools themselves only support `==` and `!=`)
+- Unary: `-` (negation of ints and floats)
 
-- `+`: Addition
-- `-`: Subtraction
-- `*`: Multiplication
-- `/`: Division
-- `^`: Exponentiation
-- `%`: Modulus
-
-### Logical Operators
-
-- `!`: Logical NOT
-- `&&`: Logical AND
-- `||`: Logical OR
-
-### Comparison Operators
-
-- `==`: Equal to
-- `!=`: Not equal to
-- `<`: Less than
-- `>`: Greater than
-
-## Variable Declaration
-
-Variables are declared using the `let` or `dale` keyword, followed by the variable name, type, and value.
-
-### Syntax
+## Variables
 
 ```
-let <variable_name>: <type> = <value>;
-dale <variable_name>: <type> = <value> sipe;
+let x: int = 5;      // with a type annotation (checked against the value)
+let y = 3.14;        // type inferred from the value
+x = x + 1;           // assignment; the new value must match the variable's type
 ```
 
-### Examples
+## Control flow
+
+Conditions must be `bool`s — `if 1 { ... }` is a type error.
 
 ```
-let x: int = 5;
-dale y: float = 3.14 sipe;
-let is_peruvian: bool = alafirme;
-```
-
-## Code Blocks
-
-Code blocks are defined using curly braces `{}`. Whitespace (spaces, tabs, newlines) is ignored by the lexer, allowing for flexible formatting.
-
-## Conditional Statements (if/else)
-
-Conditional statements allow for different code execution paths based on a boolean condition.
-
-### Syntax
-
-```
-if (<condition>) {
-    // code to execute if condition is alafirme
+if x > 10 {
+    ...
 } else {
-    // code to execute if condition is floro
+    ...
+}
+
+while x < 100 {
+    if x == 50 {
+        break;       // jump out of the loop
+    }
+    if x % 2 == 0 {
+        continue;    // jump back to the condition
+    }
+    x = x + 1;
 }
 ```
 
-### Examples
+## Functions
+
+Programs are a list of function definitions; execution starts at `main() -> int`. Recursion works.
 
 ```
-if (x > 10) {
-    let result: int = 1;
-} else {
-    let result: int = 0;
-}
-
-if (is_peruvian) {
-    // do something
-}
-```
-
-## Return Statements
-
-Return statements are used to exit a function and return a value.
-
-### Syntax
-
-```
-return <expression>;
-```
-
-### Examples
-
-```
-return x + y;
-return alafirme;
-```
-
-## Function Definitions
-
-Functions are defined using the `fn` keyword, followed by the function name, parameters, return type, and a code block.
-
-### Syntax
-
-```
-fn <function_name>(<parameter1_name>: <parameter1_type>, ...) <return_type> {
-    // function body
-}
-```
-
-### Examples
-
-```
-fn add(a: int, b: int) int {
+fn add(a: int, b: int) -> int {
     return a + b;
 }
 
-fn greet() bool {
-    return alafirme;
+fn main() -> int {
+    return add(5, 10);
 }
 ```
 
-## Function Calls
+A function that falls off the end without returning produces a zero of its return type.
 
-Functions are called by their name followed by arguments in parentheses.
+## Printing
 
-### Syntax
-
-```
-<function_name>(<argument1>, <argument2>, ...)
-```
-
-### Examples
+`print` (slang: `habla`) is a builtin backed by C's `printf`. It accepts any number of ints, floats or bools and prints each on its own line. Bools print as `1`/`0`.
 
 ```
-let sum: int = add(5, 10);
-let greeting_status: bool = greet();
+print(42, 3.5, 1 < 2);
+```
+
+## Errors
+
+The compiler reports syntax errors, undefined names, and type mismatches with source locations:
+
+```
+SYNTAX ERROR line 3, column 5: expected SEMICOLON, got RETURN ('return')
+TYPE ERROR line 2: 'a' is declared as int but the value is a float
+COMPILE ERROR line 3: undefined variable 'b'
 ```

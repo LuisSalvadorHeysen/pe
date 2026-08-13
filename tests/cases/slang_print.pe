@@ -1,0 +1,6 @@
+// out: 77
+// expect: 0
+casera main() bota int {
+    habla(77) pe
+    tomacausa 0 pe
+}

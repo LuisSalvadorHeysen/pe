@@ -1,0 +1,8 @@
+// out: 1
+// out: 0
+// expect: 0
+fn main() -> int {
+    print(true == true);
+    print(true == false);
+    return 0;
+}

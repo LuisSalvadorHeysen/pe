@@ -1,0 +1,8 @@
+// expect: 24
+fn volume(w: int, h: int, d: int) -> int {
+    return w * h * d;
+}
+
+fn main() -> int {
+    return volume(2, 3, 4);
+}

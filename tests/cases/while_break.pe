@@ -1,0 +1,11 @@
+// expect: 6
+fn main() -> int {
+    let i = 0;
+    while true {
+        i = i + 1;
+        if i == 6 {
+            break;
+        }
+    }
+    return i;
+}

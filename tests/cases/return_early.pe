@@ -1,0 +1,6 @@
+// expect: 1
+// nothing after the first return should run
+fn main() -> int {
+    return 1;
+    return 2;
+}

@@ -1,0 +1,10 @@
+// expect: 8
+// standard and slang keywords can be mixed freely
+fn double(x: int) -> int {
+    tomacausa x * 2 pe
+}
+
+casera main() bota int {
+    let a = 4;
+    return double(a);
+}

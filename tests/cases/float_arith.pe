@@ -1,0 +1,6 @@
+// out: 3.75
+// expect: 0
+fn main() -> int {
+    print(1.5 + 2.25);
+    return 0;
+}
