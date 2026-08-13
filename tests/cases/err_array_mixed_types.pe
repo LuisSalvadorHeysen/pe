@@ -1,0 +1,5 @@
+// error: array elements must all be the same type
+fn main() -> int {
+    let a = [1, 2.5];
+    return 0;
+}

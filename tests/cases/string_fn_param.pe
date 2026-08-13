@@ -1,0 +1,13 @@
+// out: hola
+// out: mundo
+// expect: 0
+fn shout(word: str) -> int {
+    print(word);
+    return 0;
+}
+
+fn main() -> int {
+    shout("hola");
+    shout("mundo");
+    return 0;
+}

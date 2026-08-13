@@ -42,7 +42,7 @@ MCJIT execution  or  object file + cc link → native executable
 
 - **`Lexer.py`** turns source text into tokens, tracking line and column for error messages.
 - **`Parser.py`** is a Pratt parser producing the AST in `AST.py`. Syntax errors are collected with locations, not thrown.
-- **`Compiler.py`** walks the AST and emits LLVM IR via [llvmlite](https://llvmlite.readthedocs.io/). Variables live in `alloca` slots (the mem2reg pass promotes them to SSA registers later). `if` and `while` compile to explicit basic blocks with conditional branches; `break`/`continue` jump to the exit/condition block of the innermost loop. Type checking happens here too — every expression resolves to `(value, type)` and mismatches are reported with line numbers.
+- **`Compiler.py`** walks the AST and emits LLVM IR via [llvmlite](https://llvmlite.readthedocs.io/). Variables live in `alloca` slots (the mem2reg pass promotes them to SSA registers later). `if`, `while` and `for` compile to explicit basic blocks with conditional branches; `break`/`continue` jump to the exit/step block of the innermost loop. Arrays are stack-allocated aggregates indexed with GEP instructions, with compile-time bounds checks for constant indexes; strings are pointers into global constants. Type checking happens here too — every expression resolves to `(value, type)` and mismatches are reported with line numbers.
 - **`main.py`** drives the pipeline: verify the IR, run the optimization passes, then either JIT-execute it, print it, or emit an object file and link it with the system C compiler.
 
 ## Quick start
@@ -138,14 +138,31 @@ fn main() -> int {
         }
     }
 
-    // print takes any number of ints, floats or bools
-    print(a, 2.5, a < b);
+    // for loops: init; condition; step
+    for let k = 0; k < 5; k = k + 1 {
+        i = i + k;
+    }
+
+    // fixed-size arrays with inferred element types,
+    // indexed reads/writes, and a compile-time len()
+    let nums = [10, 20, 30];
+    nums[1] = 25;
+    let total = 0;
+    for let k = 0; k < len(nums); k = k + 1 {
+        total = total + nums[k];
+    }
+
+    // strings
+    let saludo: str = "hola causa";
+
+    // print takes any number of ints, floats, bools or strings
+    print(a, 2.5, a < b, saludo);
 
     return add(a, b);
 }
 ```
 
-Types: `int` (i32), `float` (f32), `bool`. Operators: `+ - * / %`, comparisons `< <= > >= == !=`, unary `-`.
+Types: `int` (i32), `float` (f32), `bool`, `str`, and fixed-size arrays like `int[3]` (created from literals, element type inferred). Operators: `+ - * / %`, comparisons `< <= > >= == !=`, unary `-`, indexing `a[i]`.
 
 ## Error reporting
 
@@ -155,6 +172,7 @@ Errors are reported with source locations instead of Python tracebacks:
 $ python main.py bad.pe
 TYPE ERROR line 2: 'a' is declared as int but the value is a float
 COMPILE ERROR line 3: undefined variable 'b'
+COMPILE ERROR line 4: index 5 is out of bounds for 'nums' (int[3])
 ```
 
 ```
@@ -164,12 +182,12 @@ SYNTAX ERROR line 3, column 5: expected SEMICOLON, got RETURN ('return')
 
 ## Tests
 
-59 test cases covering execution results, printed output, syntax errors, and type/compile errors:
+83 test cases covering execution results, printed output, syntax errors, and type/compile errors:
 
 ```bash
 python run_tests.py
 # ...
-# 59/59 tests passed
+# 83/83 tests passed
 ```
 
 Each test declares its expectations in header comments (`// expect: 42`, `// out: hello`, `// error: undefined variable`), and the runner executes it through the real compiler. CI runs the suite plus a native-binary build on every push.
@@ -189,6 +207,7 @@ PE++ started as a tribute to Peruvian Independence Day, so every keyword has a P
 | `sipe`       | `if`       | if                          |
 | `sinope`     | `else`     | else                        |
 | `dale`       | `while`    | while loop                  |
+| `pa`         | `for`      | for loop                    |
 | `corta`      | `break`    | break                       |
 | `sigue`      | `continue` | continue                    |
 | `habla`      | `print`    | print                       |

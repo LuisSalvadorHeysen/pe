@@ -1,0 +1,7 @@
+// out: linea1
+// out: linea2
+// expect: 0
+fn main() -> int {
+    print("linea1\nlinea2");
+    return 0;
+}

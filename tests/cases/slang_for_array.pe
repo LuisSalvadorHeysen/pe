@@ -1,0 +1,15 @@
+// out: la suma es
+// out: 6
+// expect: 6
+casera main() bota int {
+    pucha xs ponle [1, 2, 3] pe
+    pucha total ponle 0 pe
+
+    pa pucha i ponle 0 pe i < len(xs) pe i ponle i + 1 {
+        total ponle total + xs[i] pe
+    }
+
+    habla("la suma es") pe
+    habla(total) pe
+    tomacausa total pe
+}

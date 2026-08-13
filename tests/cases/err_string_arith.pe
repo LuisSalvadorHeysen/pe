@@ -1,0 +1,5 @@
+// error: operator '+' is not supported for strs
+fn main() -> int {
+    let s = "hola" + "causa";
+    return 0;
+}

@@ -1,0 +1,10 @@
+// expect: 12
+fn main() -> int {
+    let count = 0;
+    for let i = 0; i < 3; i = i + 1 {
+        for let j = 0; j < 4; j = j + 1 {
+            count = count + 1;
+        }
+    }
+    return count;
+}

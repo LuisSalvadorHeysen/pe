@@ -1,0 +1,5 @@
+// error: empty array literals are not allowed
+fn main() -> int {
+    let a = [];
+    return 0;
+}

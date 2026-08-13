@@ -1,0 +1,26 @@
+// Arrays, strings and for loops
+fn sum(count: int) -> int {
+    let total = 0;
+    for let i = 1; i <= count; i = i + 1 {
+        total = total + i;
+    }
+    return total;
+}
+
+fn main() -> int {
+    let nums = [4, 8, 15, 16, 23, 42];
+    nums[0] = 100;
+
+    let total = 0;
+    for let i = 0; i < len(nums); i = i + 1 {
+        total = total + nums[i];
+    }
+
+    print("la suma del array:");
+    print(total);
+
+    print("suma de 1 a 10:");
+    print(sum(10));
+
+    return 0;
+}

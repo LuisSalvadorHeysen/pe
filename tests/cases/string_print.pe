@@ -1,0 +1,6 @@
+// out: hola causa
+// expect: 0
+fn main() -> int {
+    print("hola causa");
+    return 0;
+}

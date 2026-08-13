@@ -10,6 +10,7 @@ class TokenType(Enum):
    IDENT = "IDENT"
    INT = "INT"
    FLOAT = "FLOAT"
+   STRING = "STRING"
 
    # Arithmetic Symbols
    PLUS = "PLUS"
@@ -39,6 +40,8 @@ class TokenType(Enum):
    RPAREN = "RPAREN"
    LBRACE = "LBRACE"
    RBRACE = "RBRACE"
+   LBRACKET = "LBRACKET"
+   RBRACKET = "RBRACKET"
 
    # Keywords
    LET = "LET"
@@ -51,6 +54,7 @@ class TokenType(Enum):
    WHILE = "WHILE"
    BREAK = "BREAK"
    CONTINUE = "CONTINUE"
+   FOR = "FOR"
 
    # Types
    TYPE = "TYPE"
@@ -79,6 +83,7 @@ KEYWORDS: dict[str, TokenType] = {
     "while": TokenType.WHILE,
     "break": TokenType.BREAK,
     "continue": TokenType.CONTINUE,
+    "for": TokenType.FOR,
 }
 
 ALT_KEYWORDS: dict[str, TokenType] = {
@@ -93,9 +98,10 @@ ALT_KEYWORDS: dict[str, TokenType] = {
     "dale": TokenType.WHILE,
     "corta": TokenType.BREAK,
     "sigue": TokenType.CONTINUE,
+    "pa": TokenType.FOR,
 }
 
-TYPE_KEYWORDS: list[str] = ["int", "float", "bool"]
+TYPE_KEYWORDS: list[str] = ["int", "float", "bool", "str"]
 
 def lookup_ident(ident: str) -> TokenType:
     tt: TokenType | None = KEYWORDS.get(ident)

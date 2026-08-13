@@ -1,0 +1,8 @@
+// expect: 3
+// the init can reuse an existing variable
+fn main() -> int {
+    let i = 99;
+    for i = 0; i < 3; i = i + 1 {
+    }
+    return i;
+}

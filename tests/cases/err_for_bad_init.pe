@@ -1,0 +1,6 @@
+// error: for loop must start with 'let' or an assignment
+fn main() -> int {
+    for 5; 1 < 2; i = i + 1 {
+    }
+    return 0;
+}

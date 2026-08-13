@@ -1,0 +1,7 @@
+// out: peru
+// expect: 0
+fn main() -> int {
+    let s: str = "peru";
+    print(s);
+    return 0;
+}

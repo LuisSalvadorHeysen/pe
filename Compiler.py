@@ -2,9 +2,9 @@ from llvmlite import ir
 
 from AST import Node, NodeType, Program, Expression, Statement
 from AST import ExpressionStatement, LetStatement, BlockStatement, FunctionStatement, ReturnStatement, AssignStatement, IfStatement
-from AST import WhileStatement, BreakStatement, ContinueStatement
-from AST import InfixExpression, PrefixExpression, CallExpression
-from AST import IntegerLiteral, FloatLiteral, IdentifierLiteral, BooleanLiteral
+from AST import WhileStatement, BreakStatement, ContinueStatement, ForStatement
+from AST import InfixExpression, PrefixExpression, CallExpression, IndexExpression
+from AST import IntegerLiteral, FloatLiteral, IdentifierLiteral, BooleanLiteral, StringLiteral, ArrayLiteral
 from AST import FunctionParameter
 
 from Environment import Environment
@@ -14,7 +14,8 @@ class Compiler:
         self.type_map: dict[str, ir.Type] = {
             'int': ir.IntType(32),
             'float': ir.FloatType(),
-            'bool': ir.IntType(1)
+            'bool': ir.IntType(1),
+            'str': ir.IntType(8).as_pointer()
         }
 
         self.module: ir.Module = ir.Module('main')
@@ -28,6 +29,9 @@ class Compiler:
 
         # Cache for printf format string globals ("%d\n" etc.)
         self.fmt_strings: dict[str, ir.GlobalVariable] = {}
+
+        # Cache for string literal globals, keyed by content
+        self.strings: dict[str, ir.GlobalVariable] = {}
 
         self.__initialize_builtins()
 
@@ -80,6 +84,8 @@ class Compiler:
                 self.__visit_break_statement(node)
             case NodeType.ContinueStatement:
                 self.__visit_continue_statement(node)
+            case NodeType.ForStatement:
+                self.__visit_for_statement(node)
 
             case NodeType.InfixExpression:
                 self.__visit_infix_expression(node)
@@ -199,8 +205,25 @@ class Compiler:
         self.builder = previous_builder
 
     def __visit_assign_statement(self, node: AssignStatement) -> None:
-        name: str = node.ident.value
         value: Expression = node.right_value
+
+        # a[i] = value
+        if node.ident.type() == NodeType.IndexExpression:
+            entry = self.__resolve_index_ptr(node.ident)
+            if entry is None:
+                return
+
+            elem_ptr, elem_type = entry
+            value, Type = self.__resolve_value(value)
+
+            if Type != elem_type:
+                self.errors.append(f"TYPE ERROR line {node.line_no}: array holds {self.__type_name(elem_type)}s, cannot assign a {self.__type_name(Type)}")
+                return
+
+            self.builder.store(value, elem_ptr)
+            return
+
+        name: str = node.ident.value
 
         value, Type = self.__resolve_value(value)
 
@@ -285,6 +308,44 @@ class Compiler:
 
         cond_block, exit_block = self.loops[-1]
         self.builder.branch(cond_block)
+
+    def __visit_for_statement(self, node: ForStatement) -> None:
+        func: ir.Function = self.builder.function
+
+        cond_block: ir.Block = func.append_basic_block('for_cond')
+        body_block: ir.Block = func.append_basic_block('for_body')
+        post_block: ir.Block = func.append_basic_block('for_post')
+        exit_block: ir.Block = func.append_basic_block('for_exit')
+
+        # The init runs once, in the current block
+        self.compile(node.init)
+        self.builder.branch(cond_block)
+
+        self.builder.position_at_start(cond_block)
+
+        test, test_type = self.__resolve_value(node.condition)
+        if test_type != ir.IntType(1):
+            self.errors.append(f"TYPE ERROR line {node.line_no}: for condition must be a bool, got a {self.__type_name(test_type)}")
+            test = ir.Constant(ir.IntType(1), 0)
+
+        self.builder.cbranch(test, body_block, exit_block)
+
+        # continue jumps to the post step, break jumps out
+        self.loops.append((post_block, exit_block))
+
+        self.builder.position_at_start(body_block)
+        self.compile(node.body)
+
+        if not self.builder.block.is_terminated:
+            self.builder.branch(post_block)
+
+        self.loops.pop()
+
+        self.builder.position_at_start(post_block)
+        self.compile(node.post)
+        self.builder.branch(cond_block)
+
+        self.builder.position_at_start(exit_block)
 
     # endregion
 
@@ -415,7 +476,15 @@ class Compiler:
 
         match name:
             case 'print' | 'habla':
-                ret = self.__builtin_print(args, types)
+                ret = self.__builtin_print(args, types, node)
+                ret_type = self.type_map['int']
+            case 'len':
+                # len(a) for arrays; the size is known at compile time
+                if len(types) != 1 or not isinstance(types[0], ir.ArrayType):
+                    self.errors.append(f"COMPILE ERROR line {node.line_no}: len() takes one array argument")
+                    return ir.Constant(self.type_map['int'], 0), self.type_map['int']
+
+                ret = ir.Constant(self.type_map['int'], types[0].count)
                 ret_type = self.type_map['int']
             case _:
                 entry = self.env.lookup(name)
@@ -446,6 +515,10 @@ class Compiler:
             return 'bool'
         if isinstance(Type, ir.IntType):
             return 'int'
+        if isinstance(Type, ir.PointerType):
+            return 'str'
+        if isinstance(Type, ir.ArrayType):
+            return f'{self.__type_name(Type.element)}[{Type.count}]'
         return str(Type)
 
     def __fmt_string(self, name: str, text: str) -> ir.Value:
@@ -462,7 +535,7 @@ class Compiler:
 
         return self.builder.bitcast(self.fmt_strings[name], ir.IntType(8).as_pointer())
 
-    def __builtin_print(self, args: list[ir.Value], types: list[ir.Type]) -> ir.Value:
+    def __builtin_print(self, args: list[ir.Value], types: list[ir.Type], node: CallExpression) -> ir.Value:
         """ print(a, b, ...) -> one printf call per argument, one line each """
         ret = ir.Constant(self.type_map['int'], 0)
 
@@ -471,14 +544,53 @@ class Compiler:
                 fmt = self.__fmt_string('fmt_float', '%g\n')
                 # varargs promote floats to doubles in C, printf expects that
                 value = self.builder.fpext(value, ir.DoubleType())
-            else:
+            elif isinstance(typ, ir.PointerType):
+                fmt = self.__fmt_string('fmt_str', '%s\n')
+            elif isinstance(typ, ir.IntType):
                 fmt = self.__fmt_string('fmt_int', '%d\n')
                 if typ.width == 1:
                     value = self.builder.zext(value, self.type_map['int'])
+            else:
+                self.errors.append(f"TYPE ERROR line {node.line_no}: cannot print a {self.__type_name(typ)}")
+                continue
 
             ret = self.builder.call(self.printf, [fmt, value])
 
         return ret
+
+    def __resolve_index_ptr(self, node: IndexExpression) -> tuple[ir.Value, ir.Type]:
+        """ a[i] -> a pointer to the element, via GEP. Returns None on error. """
+        if node.left.type() != NodeType.IdentifierLiteral:
+            self.errors.append(f"COMPILE ERROR line {node.line_no}: only variables can be indexed")
+            return None
+
+        name: str = node.left.value
+
+        entry = self.env.lookup(name)
+        if entry is None:
+            self.errors.append(f"COMPILE ERROR line {node.line_no}: undefined variable '{name}'")
+            return None
+
+        ptr, Type = entry
+        if not isinstance(Type, ir.ArrayType):
+            self.errors.append(f"TYPE ERROR line {node.line_no}: '{name}' is a {self.__type_name(Type)}, not an array")
+            return None
+
+        idx_value, idx_type = self.__resolve_value(node.index)
+        if idx_type != self.type_map['int']:
+            self.errors.append(f"TYPE ERROR line {node.line_no}: array index must be an int, got a {self.__type_name(idx_type)}")
+            return None
+
+        # Catch out-of-bounds indexes at compile time when the index is a literal
+        if node.index.type() == NodeType.IntegerLiteral:
+            if node.index.value < 0 or node.index.value >= Type.count:
+                self.errors.append(f"COMPILE ERROR line {node.line_no}: index {node.index.value} is out of bounds for '{name}' ({self.__type_name(Type)})")
+                return None
+
+        zero = ir.Constant(self.type_map['int'], 0)
+        elem_ptr = self.builder.gep(ptr, [zero, idx_value], inbounds=True)
+
+        return elem_ptr, Type.element
 
     def __resolve_value(self, node: Expression, value_type: str = None) -> tuple[ir.Value, ir.Type]:
         match node.type():
@@ -502,6 +614,52 @@ class Compiler:
             case NodeType.BooleanLiteral:
                node: BooleanLiteral = node
                return ir.Constant(ir.IntType(1), 1 if node.value else 0), ir.IntType(1)
+            case NodeType.StringLiteral:
+               node: StringLiteral = node
+               if node.value not in self.strings:
+                   data = bytearray(node.value.encode('utf8') + b'\x00')
+                   typ = ir.ArrayType(ir.IntType(8), len(data))
+
+                   g = ir.GlobalVariable(self.module, typ, f'str.{len(self.strings)}')
+                   g.initializer = ir.Constant(typ, data)
+                   g.global_constant = True
+
+                   self.strings[node.value] = g
+
+               ptr = self.builder.bitcast(self.strings[node.value], self.type_map['str'])
+               return ptr, self.type_map['str']
+            case NodeType.ArrayLiteral:
+               node: ArrayLiteral = node
+               if len(node.elements) == 0:
+                   self.errors.append(f"COMPILE ERROR line {node.line_no}: empty array literals are not allowed (no way to know the type)")
+                   return ir.Constant(self.type_map['int'], 0), self.type_map['int']
+
+               values = []
+               elem_type = None
+               for elem in node.elements:
+                   v, t = self.__resolve_value(elem)
+                   if elem_type is None:
+                       elem_type = t
+                   elif t != elem_type:
+                       self.errors.append(f"TYPE ERROR line {node.line_no}: array elements must all be the same type ({self.__type_name(elem_type)} vs {self.__type_name(t)})")
+                       return ir.Constant(self.type_map['int'], 0), self.type_map['int']
+                   values.append(v)
+
+               arr_type = ir.ArrayType(elem_type, len(values))
+
+               # Build the aggregate value one element at a time
+               agg = ir.Constant(arr_type, ir.Undefined)
+               for i, v in enumerate(values):
+                   agg = self.builder.insert_value(agg, v, i)
+
+               return agg, arr_type
+            case NodeType.IndexExpression:
+                entry = self.__resolve_index_ptr(node)
+                if entry is None:
+                    return ir.Constant(self.type_map['int'], 0), self.type_map['int']
+
+                elem_ptr, elem_type = entry
+                return self.builder.load(elem_ptr), elem_type
             # Expression Values
             case NodeType.InfixExpression:
                 return self.__visit_infix_expression(node)

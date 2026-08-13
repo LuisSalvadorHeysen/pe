@@ -15,17 +15,21 @@ class NodeType(Enum):
     WhileStatement = "WhileStatement"
     BreakStatement = "BreakStatement"
     ContinueStatement = "ContinueStatement"
+    ForStatement = "ForStatement"
 
     # Expressions
     InfixExpression = "InfixExpression"
     PrefixExpression = "PrefixExpression"
     CallExpression = "CallExpression"
+    IndexExpression = "IndexExpression"
 
     # Literals
     IntegerLiteral = "IntegerLiteral"
     FloatLiteral = "FloatLiteral"
     IdentifierLiteral = "IdentifierLiteral"
     BooleanLiteral = "BooleanLiteral"
+    StringLiteral = "StringLiteral"
+    ArrayLiteral = "ArrayLiteral"
 
     # Helper
     FunctionParameter = "FunctionParameter"
@@ -229,6 +233,26 @@ class ContinueStatement(Statement):
             "type": self.type().value
         }
 
+class ForStatement(Statement):
+    def __init__(self, init: Statement = None, condition: Expression = None, post: Statement = None, body: BlockStatement = None, line_no: int = None) -> None:
+        self.init = init
+        self.condition = condition
+        self.post = post
+        self.body = body
+        self.line_no = line_no
+
+    def type(self) -> NodeType:
+        return NodeType.ForStatement
+
+    def json(self) -> dict:
+        return {
+            "type": self.type().value,
+            "init": self.init.json(),
+            "condition": self.condition.json(),
+            "post": self.post.json(),
+            "body": self.body.json(),
+        }
+
 # endregion
 
 # region Expressions
@@ -264,6 +288,22 @@ class PrefixExpression(Expression):
             "type": self.type().value,
             "operator": self.operator,
             "right_node": self.right_node.json()
+        }
+
+class IndexExpression(Expression):
+    def __init__(self, left: Expression = None, index: Expression = None, line_no: int = None) -> None:
+       self.left = left
+       self.index = index
+       self.line_no = line_no
+
+    def type(self) -> NodeType:
+        return NodeType.IndexExpression
+
+    def json(self) -> dict:
+        return {
+            "type": self.type().value,
+            "left": self.left.json(),
+            "index": self.index.json()
         }
 
 class CallExpression(Expression):
@@ -327,13 +367,40 @@ class IdentifierLiteral(Expression):
 class BooleanLiteral(Expression):
     def __init__(self, value: bool = None) -> None:
        self.value: bool = value
-    
+
     def type(self) -> NodeType:
         return NodeType.BooleanLiteral
-    
+
     def json(self) -> dict:
         return {
             "type": self.type().value,
             "value": self.value
+        }
+
+class StringLiteral(Expression):
+    def __init__(self, value: str = None) -> None:
+       self.value: str = value
+
+    def type(self) -> NodeType:
+        return NodeType.StringLiteral
+
+    def json(self) -> dict:
+        return {
+            "type": self.type().value,
+            "value": self.value
+        }
+
+class ArrayLiteral(Expression):
+    def __init__(self, elements: list[Expression] = None, line_no: int = None) -> None:
+       self.elements = elements if elements is not None else []
+       self.line_no = line_no
+
+    def type(self) -> NodeType:
+        return NodeType.ArrayLiteral
+
+    def json(self) -> dict:
+        return {
+            "type": self.type().value,
+            "elements": [e.json() for e in self.elements]
         }
 # endregion

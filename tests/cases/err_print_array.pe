@@ -1,0 +1,6 @@
+// error: cannot print a int[3]
+fn main() -> int {
+    let a = [1, 2, 3];
+    print(a);
+    return 0;
+}

@@ -83,6 +83,29 @@ class Lexer:
         else:
             return self.__new_token(TokenType.FLOAT, float(output))
 
+    def __read_string(self) -> Token:
+        self.__read_char()  # skip the opening quote
+
+        output: str = ""
+        escapes = {'n': '\n', 't': '\t', '"': '"', '\\': '\\'}
+
+        while self.current_char != '"':
+            if self.current_char is None or self.current_char == '\n':
+                print(f"Unterminated string on line {self.tok_line}")
+                return self.__new_token(TokenType.ILLEGAL, output)
+
+            if self.current_char == '\\':
+                self.__read_char()
+                output += escapes.get(self.current_char, self.current_char)
+            else:
+                output += self.current_char
+
+            self.__read_char()
+
+        self.__read_char()  # skip the closing quote
+
+        return self.__new_token(TokenType.STRING, output)
+
     def __read_identifier(self) -> str:
         position = self.position
         while self.current_char is not None and (self.__is_letter(self.current_char) or self.current_char.isalnum()):
@@ -164,6 +187,12 @@ class Lexer:
                 tok = self.__new_token(TokenType.LBRACE, self.current_char)
             case '}':
                 tok = self.__new_token(TokenType.RBRACE, self.current_char)
+            case '[':
+                tok = self.__new_token(TokenType.LBRACKET, self.current_char)
+            case ']':
+                tok = self.__new_token(TokenType.RBRACKET, self.current_char)
+            case '"':
+                return self.__read_string()
             case ';':
                 tok = self.__new_token(TokenType.SEMICOLON, self.current_char)
             case None:

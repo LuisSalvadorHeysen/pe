@@ -3,11 +3,11 @@ from Token import Token, TokenType
 from typing import Callable
 from enum import Enum, auto
 
-from AST import Statement, Expression, Program
+from AST import NodeType, Statement, Expression, Program
 from AST import ExpressionStatement, LetStatement, FunctionStatement, ReturnStatement, BlockStatement, AssignStatement, IfStatement
-from AST import WhileStatement, BreakStatement, ContinueStatement
-from AST import InfixExpression, PrefixExpression, CallExpression
-from AST import IntegerLiteral, FloatLiteral, IdentifierLiteral, BooleanLiteral
+from AST import WhileStatement, BreakStatement, ContinueStatement, ForStatement
+from AST import InfixExpression, PrefixExpression, CallExpression, IndexExpression
+from AST import IntegerLiteral, FloatLiteral, IdentifierLiteral, BooleanLiteral, StringLiteral, ArrayLiteral
 from AST import FunctionParameter
 
 # Precedence Types
@@ -37,7 +37,8 @@ PRECEDENCES: dict[TokenType, PrecedenceType] = {
     TokenType.GT: PrecedenceType.P_LESSGREATER,
     TokenType.LT_EQ: PrecedenceType.P_LESSGREATER,
     TokenType.GT_EQ: PrecedenceType.P_LESSGREATER,
-    TokenType.LPAREN: PrecedenceType.P_CALL
+    TokenType.LPAREN: PrecedenceType.P_CALL,
+    TokenType.LBRACKET: PrecedenceType.P_INDEX
 }
 
 class Parser:
@@ -57,7 +58,9 @@ class Parser:
             TokenType.IF: self.__parse_if_statement,
             TokenType.TRUE: self.__parse_boolean,
             TokenType.FALSE: self.__parse_boolean,
-            TokenType.MINUS: self.__parse_prefix_expression
+            TokenType.MINUS: self.__parse_prefix_expression,
+            TokenType.STRING: self.__parse_string_literal,
+            TokenType.LBRACKET: self.__parse_array_literal
         }
 
         self.infix_parse_fns: dict[TokenType, Callable] = {
@@ -73,7 +76,8 @@ class Parser:
             TokenType.GT : self.__parse_infix_expression,
             TokenType.LT_EQ : self.__parse_infix_expression,
             TokenType.GT_EQ : self.__parse_infix_expression,
-            TokenType.LPAREN : self.__parse_call_expression
+            TokenType.LPAREN : self.__parse_call_expression,
+            TokenType.LBRACKET : self.__parse_index_expression
         }
 
         self.__next_token()
@@ -144,6 +148,8 @@ class Parser:
                 return self.__parse_return_statement()
             case TokenType.WHILE:
                 return self.__parse_while_statement()
+            case TokenType.FOR:
+                return self.__parse_for_statement()
             case TokenType.BREAK:
                 return self.__parse_break_statement()
             case TokenType.CONTINUE:
@@ -153,6 +159,21 @@ class Parser:
 
     def __parse_expression_statement(self) -> ExpressionStatement:
         expr = self.__parse_expression(PrecedenceType.P_LOWEST)
+
+        # a[i] = value;  parses as an expression until we see the '='
+        if expr is not None and expr.type() == NodeType.IndexExpression and self.__peek_token_is(TokenType.EQ):
+            stmt: AssignStatement = AssignStatement(ident=expr, line_no=self.peek_token.line_no)
+
+            self.__next_token()  # onto the '='
+            self.__next_token()  # past the '='
+
+            stmt.right_value = self.__parse_expression(PrecedenceType.P_LOWEST)
+
+            if not self.__expect_peek(TokenType.SEMICOLON):
+                return None
+
+            return stmt
+
         if self.__peek_token_is(TokenType.SEMICOLON):
             self.__next_token()
 
@@ -281,17 +302,17 @@ class Parser:
         
         return block_stmt
 
-    def __parse_assignment_statement(self) -> AssignStatement:
+    def __parse_assignment_statement(self, expect_semicolon: bool = True) -> AssignStatement:
         stmt: AssignStatement = AssignStatement(line_no=self.current_token.line_no)
 
         stmt.ident = IdentifierLiteral(value=self.current_token.literal, line_no=self.current_token.line_no)
 
         self.__next_token()  # skips the IDENT
-        self.__next_token()  # skips the = 
+        self.__next_token()  # skips the =
 
         stmt.right_value = self.__parse_expression(PrecedenceType.P_LOWEST)
 
-        if not self.__expect_peek(TokenType.SEMICOLON):
+        if expect_semicolon and not self.__expect_peek(TokenType.SEMICOLON):
             return None
 
         return stmt
@@ -328,6 +349,49 @@ class Parser:
         self.__next_token()
 
         stmt.condition = self.__parse_expression(PrecedenceType.P_LOWEST)
+
+        if not self.__expect_peek(TokenType.LBRACE):
+            return None
+
+        stmt.body = self.__parse_block_statement()
+
+        return stmt
+
+    def __parse_for_statement(self) -> ForStatement:
+        # for let i = 0; i < 10; i = i + 1 { ... }
+        # the init can also assign to an existing variable: for i = 0; ...
+        stmt: ForStatement = ForStatement(line_no=self.current_token.line_no)
+
+        self.__next_token()
+
+        if self.__current_token_is(TokenType.LET):
+            stmt.init = self.__parse_let_statement()
+        elif self.__current_token_is(TokenType.IDENT) and self.__peek_token_is(TokenType.EQ):
+            stmt.init = self.__parse_assignment_statement()
+        else:
+            self.errors.append(f"SYNTAX ERROR line {self.current_token.line_no}, column {self.current_token.position}: for loop must start with 'let' or an assignment")
+            return None
+
+        if stmt.init is None:
+            return None
+
+        self.__next_token()  # past the init's semicolon
+
+        stmt.condition = self.__parse_expression(PrecedenceType.P_LOWEST)
+
+        if not self.__expect_peek(TokenType.SEMICOLON):
+            return None
+
+        self.__next_token()
+
+        if not self.__current_token_is(TokenType.IDENT) or not self.__peek_token_is(TokenType.EQ):
+            self.errors.append(f"SYNTAX ERROR line {self.current_token.line_no}, column {self.current_token.position}: for loop must end with an assignment like 'i = i + 1'")
+            return None
+
+        stmt.post = self.__parse_assignment_statement(expect_semicolon=False)
+
+        if stmt.post is None:
+            return None
 
         if not self.__expect_peek(TokenType.LBRACE):
             return None
@@ -391,6 +455,18 @@ class Parser:
         expr: Expression = self.__parse_expression(PrecedenceType.P_LOWEST)
 
         if not self.__expect_peek(TokenType.RPAREN):
+            return None
+
+        return expr
+
+    def __parse_index_expression(self, left: Expression) -> Expression:
+        expr: IndexExpression = IndexExpression(left=left, line_no=self.current_token.line_no)
+
+        self.__next_token()
+
+        expr.index = self.__parse_expression(PrecedenceType.P_LOWEST)
+
+        if not self.__expect_peek(TokenType.RBRACKET):
             return None
 
         return expr
@@ -461,6 +537,18 @@ class Parser:
 
     def __parse_boolean(self) -> BooleanLiteral:
         return BooleanLiteral(value=self.__current_token_is(TokenType.TRUE))
+
+    def __parse_string_literal(self) -> StringLiteral:
+        return StringLiteral(value=self.current_token.literal)
+
+    def __parse_array_literal(self) -> ArrayLiteral:
+        arr: ArrayLiteral = ArrayLiteral(line_no=self.current_token.line_no)
+        arr.elements = self.__parse_expression_list(TokenType.RBRACKET)
+
+        if arr.elements is None:
+            return None
+
+        return arr
 
    # endregion
     

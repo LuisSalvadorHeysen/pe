@@ -1,0 +1,5 @@
+// expect: 4
+fn main() -> int {
+    let a = [5, 6, 7, 8];
+    return len(a);
+}
